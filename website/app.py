@@ -3,10 +3,21 @@ from urllib.parse import urlparse, urljoin
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 
 app = FastAPI(title="COMPAMED Bulk Company Data Extractor")
+
+# Allow the hosted Netlify frontend to call this Render API.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://ornate-griffin-c7a0d6.netlify.app"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
+)
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 EMAIL_RE = re.compile(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b")
@@ -141,10 +152,10 @@ async def extract(req: ExtractRequest):
         if not u:
             continue
         p = urlparse(u)
-        if p.scheme not in ("http", "https") or not p.netloc:
-            urls.append(u)
-        else:
-            urls.append(u)
+        host = (p.hostname or "").lower()
+        if p.scheme not in ("http", "https") or host not in ("compamed-tradefair.com", "www.compamed-tradefair.com"):
+            raise HTTPException(400, f"Invalid profile URL: {u}. Use a COMPAMED exhibitor profile link.")
+        urls.append(u)
     if not urls:
         raise HTTPException(400, "Paste at least one valid profile URL.")
     if len(urls) > 100:
@@ -162,3 +173,4 @@ async def extract(req: ExtractRequest):
 @app.get("/health")
 async def health():
     return {"ok": True}
+
