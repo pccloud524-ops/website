@@ -1,7 +1,0 @@
-services:
-  - type: web
-    name: compamed-bulk-extractor
-    runtime: docker
-    plan: free
-    healthCheckPath: /health
-    autoDeploy: true
